@@ -1,29 +1,45 @@
 import mongoose from 'mongoose';
 
 export type Event = {
-  blockId: string;
-  transactionId: string;
+  id: string;
+  contractAddress: string;
+  blockHash: string;
+  txId: string;
   eventIndex: number;
-  eventData: any;
-  timestamp: number;
+  name: string;
+  fields: {
+    address: string;
+    newName?: string;
+    name?: string;
+  }
+  createdAt: string;
 }
 
 const eventSchema = new mongoose.Schema({
+  contractAddress: {type: String, required: true},
   blockHash: {type: String, required: true},
-  txId: {type: String, required: true},
+  txId: {type: String, required: true, unique: true},
   eventIndex: {type: Number, required: true},
-  eventData: {type: Object, required: true},
-  timestamp: {type: Number, required: true},
+  name: {type: String, required: true},
+  fields: {type: Object, required: true},
 });
 
 const Event = mongoose.model('Event', eventSchema);
 
-export const storeEvent = async (eventData: any) => {
+export const storeEvent = async (eventData: Omit<Event, 'id' | 'createdAt'>) => {
+  const event = new Event({
+    ...eventData,
+    createdAt: new Date()
+  });
+
   try {
-    const event = new Event(eventData);
     await event.save();
-    console.log(`✅ Stored event from block ${eventData.blockId}, transaction ${eventData.txId}`);
-  } catch (error) {
-    console.error('❌ Error storing event data:', error);
+    console.log(`✅ Successfully saved event: ${eventData.blockHash}`);
+  } catch (error: any) {
+    if (error["code"] === 11000) {
+      console.error(`✅ Event: already exists`);
+    } else {
+      console.error(`❌ Error saving event: ${event.eventIndex}`, error);
+    }
   }
 };
