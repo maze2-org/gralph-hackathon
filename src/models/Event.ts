@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+export type EventType = 'ReverseAddressSet' | 'ReverseAddressDeleted'
+
 export type Event = {
   id: string;
   contractAddress: string;

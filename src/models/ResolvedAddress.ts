@@ -1,4 +1,6 @@
-import mongoose, {mongo} from 'mongoose';
+import mongoose from 'mongoose';
+
+import {Event, EventType} from "./Event";
 
 export type ResolvedAddress = {
   id: string;
@@ -39,9 +41,9 @@ export const storeResolvedAddress = async (resolvedData: Omit<ResolvedAddress, '
   }
 };
 
-export const deleteResolvedAddress = async (address:string) => {
+export const deleteResolvedAddress = async (address: string) => {
   try {
-    const result = await ResolvedAddress.deleteOne({ address: address });
+    const result = await ResolvedAddress.deleteOne({address: address});
 
     if (result.deletedCount === 0) {
       console.log('❌ Address not found')
@@ -54,4 +56,13 @@ export const deleteResolvedAddress = async (address:string) => {
     console.error('❌ Error deleting address:', error);
     return null;
   }
+}
+
+export const checkAddressExists = async (address: string): Promise<EventType | null> => {
+  const events = await Event.find({'fields.address': address}).sort({blockHash: -1}).limit(1).exec();
+  const event = events?.[0]
+  if (event?.name) {
+    return event.name as EventType
+  }
+  return null
 }

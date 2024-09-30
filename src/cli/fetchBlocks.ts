@@ -9,8 +9,12 @@ import {
 
 import {connectToMongo} from "../db/connect";
 import {storeEvent} from "../models/Event";
-import {ReverseNameResolverInstance} from '../artifacts/ts';
-import {deleteResolvedAddress, storeResolvedAddress} from '../models/ResolvedAddress';
+import {ReverseNameResolverInstance, ReverseNameResolverTypes} from '../artifacts/ts';
+import {
+  checkAddressExists,
+  deleteResolvedAddress,
+  storeResolvedAddress
+} from '../models/ResolvedAddress';
 
 dotenv.config();
 
@@ -41,13 +45,15 @@ async function command() {
 
     reverseNameResolver.subscribeReverseAddressSetEvent({
       messageCallback: async (message) => {
-        console.log("New address set", message);
-        await storeEvent({...message, fields:{...message.fields,parsedName:hexToString(message.fields.newName)}});
-        await storeResolvedAddress({
-          name: hexToString(message?.fields?.newName),
-          address: message.fields.address,
-          addressGroup: groupOfAddress(message.fields.address)
-        })
+        await storeEvent({...message, fields: {...message.fields, parsedName: hexToString(message.fields.newName)}});
+        const eventName = await checkAddressExists(message.fields.address)
+        if (eventName === 'ReverseAddressSet') {
+          await storeResolvedAddress({
+            name: hexToString(message?.fields?.newName),
+            address: message.fields.address,
+            addressGroup: groupOfAddress(message.fields.address)
+          })
+        }
       },
       errorCallback: (error) => {
         console.log("Error", error);
@@ -57,9 +63,11 @@ async function command() {
 
     reverseNameResolver.subscribeReverseAddressDeletedEvent({
       messageCallback: async (message) => {
-        console.log("Reverse address deleted", message);
-        await storeEvent({...message, fields:{...message.fields,parsedName:hexToString(message.fields.name)}});
-        await deleteResolvedAddress(message.fields.address);
+        await storeEvent({...message, fields: {...message.fields, parsedName: hexToString(message.fields.name)}});
+        const eventName = await checkAddressExists(message.fields.address)
+        if (eventName === 'ReverseAddressDeleted') {
+          await deleteResolvedAddress(message.fields.address);
+        }
       },
       errorCallback: (error) => {
         console.log("Error", error);
