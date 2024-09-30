@@ -1,11 +1,6 @@
-import {Block} from '../models/Block';
 import {ResolvedAddress} from '../models/ResolvedAddress';
 
 const rootValue = {
-  getBlocks: async ({fromTs, toTs}: { fromTs: number; toTs: number }) => {
-    return Block.find({timestamp: {$gte: fromTs, $lte: toTs}});
-  },
-
   getNames: async () => {
     return ResolvedAddress.find();
   },
