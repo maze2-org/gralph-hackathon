@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, {mongo} from 'mongoose';
 
 export type ResolvedAddress = {
   id: string;
@@ -38,3 +38,20 @@ export const storeResolvedAddress = async (resolvedData: Omit<ResolvedAddress, '
     }
   }
 };
+
+export const deleteResolvedAddress = async (address:string) => {
+  try {
+    const result = await ResolvedAddress.deleteOne({ address: address });
+
+    if (result.deletedCount === 0) {
+      console.log('❌ Address not found')
+      return null;
+    }
+
+    console.log('✅ Address deleted successfully')
+    return result
+  } catch (error) {
+    console.error('❌ Error deleting address:', error);
+    return null;
+  }
+}

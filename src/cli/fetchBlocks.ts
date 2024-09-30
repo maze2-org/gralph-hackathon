@@ -15,7 +15,7 @@ import {
 import {connectToMongo} from "../db/connect";
 import {storeEvent} from "../models/Event";
 import {getLastImportedBlockHash, storeBlock} from "../models/Block";
-import {ResolvedAddress, storeResolvedAddress} from '../models/ResolvedAddress';
+import {deleteResolvedAddress, ResolvedAddress, storeResolvedAddress} from '../models/ResolvedAddress';
 import {FarmTypes, ReverseNameResolverInstance} from '../artifacts/ts';
 import NameCreatedEvent = FarmTypes.NameCreatedEvent;
 
@@ -119,60 +119,51 @@ const resolveAddressToName = async (address: string): Promise<Omit<ResolvedAddre
 
 // Main function to execute the command
 async function command() {
-  console.log('API_KEY', API_KEY)
-  console.log('NODE_URL', NODE_URL)
-  await connectToMongo();
+    console.log('API_KEY', API_KEY)
+    console.log('NODE_URL', NODE_URL)
+    await connectToMongo();
 
-  let lastImportedBlockHash = await getLastImportedBlockHash();
-  // Start with the last imported block hash or a predefined starting block
-  // const startBlockHash = lastImportedBlockHash || '0000000000000000000000000000000000000000000000000000000000000001';
-  const startingBlockHash = lastImportedBlockHash || '00000000000008de537efe4ad1beb32f839f2974dea1aaf2733c4710cefbd9b7';
+    let lastImportedBlockHash = await getLastImportedBlockHash();
+    // Start with the last imported block hash or a predefined starting block
+    // const startBlockHash = lastImportedBlockHash || '0000000000000000000000000000000000000000000000000000000000000001';
+    const startingBlockHash = lastImportedBlockHash || '00000000000008de537efe4ad1beb32f839f2974dea1aaf2733c4710cefbd9b7';
 
-  let currentBlockHash = startingBlockHash;
-  console.log(`🚀 Starting block hash: ${currentBlockHash}`);
+    let currentBlockHash = startingBlockHash;
+    console.log(`🚀 Starting block hash: ${currentBlockHash}`);
 
-  while (currentBlockHash) {
-    try {
-      const {data: block} = await axios.get(`${NODE_URL}/blockflow/blocks/${currentBlockHash}`, {
-        headers: {
-          'x-api-key': API_KEY
-        }
-      });
-      await storeBlock({
-        hash: block.hash,
-        nonce: block.nonce,
-        height: block.height,
-        timestamp: block.timestamp,
-      })
+    for (let group = 0; group < REVERSE_NAME_RESOLVERS.length; group++) {
+        const reverseNameResolverContractId = REVERSE_NAME_RESOLVERS[group]
+        const reverseNameResolver = new ReverseNameResolverInstance(addressFromContractId(reverseNameResolverContractId))
 
-      for (const transaction of block.transactions) {
-        console.log(`🔄 Processing transaction ID: ${transaction.unsigned.txId}`);
 
-        for (const fixed of transaction.unsigned.fixedOutputs) {
-          const address = fixed.address;
-          console.log(`🔗 Resolving name for address: ${address}`);
+        console.log(`Listen to contract ${reverseNameResolver.address} on group ${group}`);
 
-          const resolvedData = await resolveAddressToName(address);
-          if (resolvedData) {
-            console.log(`✅ Resolved name: ${resolvedData.name}`);
-            await storeResolvedAddress(resolvedData); // Save the resolved name to the database
+        reverseNameResolver.subscribeReverseAddressSetEvent({
+            messageCallback: async (message) => {
+                console.log("New address set", message);
+                await storeResolvedAddress({
+                    name: hexToString(message?.fields?.newName),
+                    address: message.fields.address,
+                    addressGroup: groupOfAddress(message.fields.address)
+                })
+            },
+            errorCallback: (error) => {
+                console.log("Error", error);
+            },
+            pollingInterval: 1000
+        })
 
-            // await subscribeToEventsByGroup(resolvedData, currentBlockHash);
-            // console.log(`📩 Subscribed to events for name: ${resolvedData.name}`);
-          } else {
-            console.log(`❌ No valid name found for address: ${address}`);
-          }
-        }
-      }
-
-      // Set the next block hash for the next iteration
-      currentBlockHash = block.deps[block.deps.length - 1];
-      console.log(`➡️ Next block hash: ${currentBlockHash}`);
-    } catch (error) {
-      console.error(`⚠️ Error fetching block or processing transactions:`, error);
-      break;
+        reverseNameResolver.subscribeReverseAddressDeletedEvent({
+            messageCallback: async (message) => {
+                console.log("Reverse address deleted", message);
+                await deleteResolvedAddress(message.fields.address);
+            },
+            errorCallback: (error) => {
+                console.log("Error", error);
+            },
+            pollingInterval: 1000
+        })
     }
-  }
 }
 
 // Execute the command with the parameter from the command line
