@@ -42,7 +42,7 @@ async function command() {
     reverseNameResolver.subscribeReverseAddressSetEvent({
       messageCallback: async (message) => {
         console.log("New address set", message);
-        await storeEvent(message);
+        await storeEvent({...message, fields:{...message.fields,parsedName:hexToString(message.fields.newName)}});
         await storeResolvedAddress({
           name: hexToString(message?.fields?.newName),
           address: message.fields.address,
@@ -58,7 +58,7 @@ async function command() {
     reverseNameResolver.subscribeReverseAddressDeletedEvent({
       messageCallback: async (message) => {
         console.log("Reverse address deleted", message);
-        await storeEvent(message);
+        await storeEvent({...message, fields:{...message.fields,parsedName:hexToString(message.fields.name)}});
         await deleteResolvedAddress(message.fields.address);
       },
       errorCallback: (error) => {

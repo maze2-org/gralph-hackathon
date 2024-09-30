@@ -9,6 +9,7 @@ export type Event = {
   name: string;
   fields: {
     address: string;
+    parsedName: string;
     newName?: string;
     name?: string;
   }
@@ -24,7 +25,7 @@ const eventSchema = new mongoose.Schema({
   fields: {type: Object, required: true},
 });
 
-const Event = mongoose.model('Event', eventSchema);
+export const Event = mongoose.model('Event', eventSchema);
 
 export const storeEvent = async (eventData: Omit<Event, 'id' | 'createdAt'>) => {
   const event = new Event({

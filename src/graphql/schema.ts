@@ -1,11 +1,21 @@
 import {buildSchema} from 'graphql';
 
 const schema = buildSchema(`
-  type Block {
-    hash: String!
-    timestamp: Float!
-    height: Int!
-    nonce: String
+  type Field {
+    address: String!
+    parsedName: String!
+    name: String,
+    newName: String
+  }
+  
+  type Event {
+    contractAddress: String!
+    blockHash: String!
+    txId: String!
+    eventIndex: Int!
+    name: String!
+    fields: Field
+    createdAt: String!
   }
   
   type Name {
@@ -15,7 +25,11 @@ const schema = buildSchema(`
   }
 
   type Query {
-    getBlocks(fromTs: Float!, toTs: Float!): [Block]
+    getEvents: [Event]
+    getEventsByType(eventType: String!): [Event]
+    getEventsByAddress(address: String!): [Event]
+    getEventsByName(name: String!): [Event]
+    
     getNames: [Name]
     getAddressByName(name: String!): Name
     getNameByAddress(address: String!): Name
